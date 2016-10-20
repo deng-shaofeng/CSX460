@@ -1,12 +1,17 @@
 ---
 title: "NYCFlights: Arrival Delay Regression Model"
-author: "[Your Name]"
-date: "[Today's Date]"
+author: "Shaofeng Deng"
+date: "October 18, 2016"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(dplyr)
+library(magrittr)
+library(ggplot2)
+library(psych)
 ```
 
 # NYCFlights Model
@@ -18,7 +23,11 @@ for building a model. Describe/Explain each of the steps and show all work in co
 ## Step 1: Collect Data 
 
 ```{r "Step 1: Collect Data" }
-
+YX <- read.csv("YX.csv",stringsAsFactors = T)
+# Remove all observation with missing values
+YX <- YX[complete.cases(YX),]
+# Remove varibles with only one value or level
+YX <- Filter(function(x)(length(unique(x))>1), YX)
 ```
 
 ## Step 2: Explore and Prep The Data
@@ -28,12 +37,26 @@ One of the things not done in the MLwR text is a pairwise comparison between the
 
 
 ```{r "Step 2: Explore and Prep The Data" }
-
+# Confirm the format of the data
+str(YX)
+# Summary of the responce
+YX$arr_delay %>% summary
+# Histogram of the responce
+hist(YX$arr_delay)
+# Corrolations between dependent varible and other varibles
+nums <- sapply(YX, is.numeric)
+co <- YX[nums] %>% cor(use="complete.obs")
+co["arr_delay",]
+# Use the most corrolated varibles to compute scatterplot matrix
+psych::pairs.panels(YX[c("arr_delay", "dep_delay", "dep_time", "arr_time")])
 ```
 
 ## Step 3:  Train The Model
 
 ```{r "Step 3: Train The Model" }
+# Use the most corrolated varibles as independent varibles to build a linear regression model
+YX_model <- lm(arr_delay ~ dep_delay+dep_time+arr_time+air_time, data = YX)
+YX_model
 
 ```
 
@@ -42,7 +65,8 @@ One of the things not done in the MLwR text is a pairwise comparison between the
 Evaluating performance is a crutial step, that has yet to be treated well by the MLwR. Think about some of the tools that you have for evaluating performance.  Choose one and articulate why you have chosen it.
 
 ```{r "Step 4: Evaluate Performance" }
-
+summary(YX_model)
+# The multiple R-squared value of this model is pretty high, which shows that it explains nearly 80% of the dependent varible. Although the size of the errors and p-values are a bit concerning.
 ```
 
 
@@ -51,11 +75,14 @@ Evaluating performance is a crutial step, that has yet to be treated well by the
 Show some steps for improving model performance.
 
 ```{r "Step 5: Improve Performance" }
-
+YX$air_time2 <- YX$air_time^2
+YX_model2 <- lm(arr_delay ~ dep_delay+dep_time*arr_time+air_time+air_time2, data = YX)
+summary(YX_model2)
+# Here we add a nonlinear trem for air_time and add interaction between dep_time and arr_time as they are supposed to. The result is a slight improve in the performence but not much.
 ```
 
 
 # Question:
 
 Is this a good model?  (Write your answer here.)
-
+The model does explain something pretty well. For example, it captures the fact that arrival delay is in proportion to departure delay. But in general, it's still an over-simplified model. First we abandon most of the varibles and only pick 4 of them. And the result shows that early departure flights tend to have small delay while early arrival flights tend to have large delay, which is weird.
