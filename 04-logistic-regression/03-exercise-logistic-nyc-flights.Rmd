@@ -1,12 +1,21 @@
 ---
 title: "NYCFlights: Arrival Delay Logictic Model"
-author: "[Your Name]"
-date: "[Today's Date]"
+author: "Shaofeng Deng"
+date: "October 25, 2016"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(MASS)
+library(readr)
+library(lubridate)
+library(magrittr)
+library(lubridate)
+library(stringr)
+library(dplyr)
+library(data.table)
 ```
 
 
@@ -24,7 +33,10 @@ knitr::opts_chunk$set(echo = TRUE)
 **Hint:** For plotting curves see `?graphics::curve` or `?ggplot2::stat_function`
 
 ```{r "Logistic and Inverse Logistic" }
-
+l <- function(x){1/(1+exp(-x))}
+ggplot(data.frame(x = c(-5, 5)), aes(x)) + stat_function(fun = l)
+inv <- function(y){-log(1/y-1)}
+ggplot(data.frame(x = c(0, 1)), aes(x)) + stat_function(fun = inv)
 ```
 
 
@@ -37,7 +49,8 @@ KNIT YOUR DOCUMENT AS *HTML* AND SUBMIT IT AND THE `Rmd` file.
 ## Step 1: Collect Data 
 
 ```{r "Step 1: Collect Data" }
-
+yx <- read_csv("yx.csv")
+yx <- yx[-1]
 ```
 
 ## Step 2: Explore and Prep The Data
@@ -45,15 +58,83 @@ KNIT YOUR DOCUMENT AS *HTML* AND SUBMIT IT AND THE `Rmd` file.
 
 One of the things not done in the MLwR text is a pairwise comparison between the response and each of the predictors. Make sure to do this; this is often very illustrative of the relationship between that predictor and the response. This can be done with `pairs` or `psych::panel.pairs`
 
+## Response;
 
+- arr_delay : right skewed, some negative 
+
+- Hypothesis: flight delays are a function of weather, mechanical problems and 
+  other factors:
+
+## Predictors
+
+This is reasonable list of variables that can be used 
+
+- fligths
+  - month             **
+  - dep_delay (?)     ***
+  - carrier / flight  *
+  - origin            
+  - dest 
+  - air_time          **
+  - distance          **  (can make up time in the air)
+  - air time / hour / minute not known at end of flight
+  
+- planes
+  - year              ** 
+  - type              **
+  - manufacture
+  - engines          (not much variation)
+  - seats
+  - engine           **
+  - speed  (not well populated)
+
+- weather 
+  - temp             
+  - dewp
+  - wind_dir         **+
+  - wind_gust        **+ 
+  - precip           **
+  - pressure         **
+  - visib            **
+  
+- airports (origin and dest)
+  - faa or name
+  - lat             ** dest(only)
+  - lon             ** dest(only)
+  - alt              
+  
+## Remark
+This step is the same as in the last homework. Here we only prepare the data.
 ```{r "Step 2: Explore and Prep The Data" }
+ y <- "arr_delay"
+ xs <- c(
+    'month','dep_delay','carrier','air_time','distance'
+   ,'type','engine'
+   ,'wind_dir','wind_speed','wind_gust','precip','pressure','visib'
+   ,'lat.x','lon.x','lat.y','lon.y'
+ )
 
+ yx <- yx[ , c(y,xs)]
+ 
+ # Remove Outliers
+
+ yx <- yx[ yx$arr_delay >= quantile(yx$arr_delay,0.01,na.rm=TRUE) &  
+           yx$arr_delay <= quantile(yx$arr_delay,0.96,na.rm=TRUE), ]
+ 
+ # HANDLE NA VALUES
+ yx <- yx[complete.cases(yx),]
+ 
+ # Change arr_delay to logical
+ yx$arr_delay <- yx$arr_delay >= 15
 ```
 
 ## Step 3:  Train The Model
+Our naive guess is: `r yx$arr_delay  %>% l %>% mean()` 
 
+Our naive rmse is: `r mean((yx[["arr_delay"]] %>% l)-(yx[["arr_delay"]] %>% l %>% mean) %>% .^2)  %>% sqrt`
 ```{r "Step 3: Train The Model" }
-
+model <- glm(arr_delay ~.,family=binomial(link='logit'),data=yx %>% sample_n(1e5))
+model
 ```
 
 ## Step 4: Evaluate Performance
@@ -61,11 +142,12 @@ One of the things not done in the MLwR text is a pairwise comparison between the
 Think about some of the tools that you have for evaluating performance.  Choose one and articulate why you have chosen it.
 
 ```{r "Step 4: Evaluate Performance" }
-
+anova(model, test="Chisq")
 ```
+The difference between the null deviance and the residual deviance shows how our model is doing against the null model (a model with only the intercept). The wider this gap, the better. Analyzing the table we can see the drop in deviance when adding each variable one at a time. Most of the varibles seem to significantly reduce the residual deviance.
 
- 
-## Step 5: Improve Performance 
+## I can only get this far in 2 hours
+## Step 5: Improve Performance  
 
 Show some steps for improving model performance.
 
