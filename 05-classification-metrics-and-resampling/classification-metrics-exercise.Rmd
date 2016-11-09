@@ -1,9 +1,22 @@
 ---
 title: "Classification Metrics"
-author: "Christopher Brown"
-date: 
+author: "Shaofeng Deng"
+date:  "November 8, 2016"
 output: html_document
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(MASS)
+library(readr)
+library(lubridate)
+library(magrittr)
+library(lubridate)
+library(stringr)
+library(dplyr)
+library(data.table)
+```
 
 The German Credit Data (data/german_credit); 
 
@@ -15,8 +28,18 @@ The German Credit Data (data/german_credit);
 Show All Work! 
 
 ```{r}
+# Read data
+credit <- read.csv("../data/german_credit.csv")
 
+# Partition into test and training sets
+smp_size <- floor(0.7 * nrow(credit))
+train_num <- sample(seq_len(nrow(credit)), size = smp_size)
+train <- credit[train_num, ]
+test <- credit[-train_num, ]
 
+# Train the model
+mymodel <- glm(Creditability ~ ., data = train, family = "binomial")
+summary(mymodel)
 ```
 
 
@@ -38,6 +61,26 @@ calculate:
 * Precision
 
 ```{r, echo=FALSE}
+result <- predict(mymodel, test, type = "response")
+result[result > 0.5] <- 1
+result[result <= 0.5] <- 0
+TP <- sum(result == test$Creditability & result == 1)
+TN <- sum(result == test$Creditability & result == 0)
+FP <- sum(result != test$Creditability & result == 1)
+FN <- sum(result != test$Creditability & result == 0)
+n <- TP+TN+FP+FN
+
+Prevalence <- (TP+FP)/n
+Accuracy <- (TP+TN)/n
+Error_Rate <- (FP+FN)/n
+TPR <- TP/(TP+FP)
+FPR <- FP/(TP+FP)
+TNR <- TN/(TN+FN)
+FNR <- FN/(TN+FN)
+Sensitivity <- TPR
+Specificity <- TNR
+Recall <- TPR
+Precision <- TP/sum(result == 1)
 
 
 ```
